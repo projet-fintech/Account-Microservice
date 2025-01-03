@@ -1,20 +1,30 @@
 package com.banque.comptes.dto;
 
-import com.banque.comptes.Entities.AccountType;
-import lombok.Getter;
-import lombok.Setter;
-import org.antlr.v4.runtime.misc.NotNull;
+import com.banque.events.enums.AccountType;
 
 import java.util.UUID;
 
-@Getter
-@Setter
+
 public class AccountRequestDTO {
 
-    @NotNull
-    private UUID clientID;
+    private UUID id_client;
 
-    @NotNull
+
     private AccountType accountType;
 
+    public UUID getId_client() {
+        return id_client;
+    }
+
+    public void setId_client(UUID id_client) {
+        this.id_client = id_client;
+    }
+
+    public AccountType getAccountType() {
+        return accountType;
+    }
+
+    public void setAccountType(AccountType accountType) {
+        this.accountType = accountType;
+    }
 }

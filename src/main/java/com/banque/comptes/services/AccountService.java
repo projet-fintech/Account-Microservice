@@ -1,12 +1,16 @@
 package com.banque.comptes.services;
 
 import com.banque.comptes.Entities.Account;
-import com.banque.comptes.Entities.AccountStatus;
-import com.banque.comptes.Entities.AccountType;
 import com.banque.comptes.repository.AccountRepository;
+import com.banque.events.dto.AccountDto;
+import com.banque.events.enums.AccountStatus;
+import com.banque.events.enums.AccountType;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.requestreply.ReplyingKafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.security.auth.login.AccountNotFoundException;
@@ -20,6 +24,8 @@ public class AccountService {
     @Autowired
     private AccountRepository accountRepository;
 
+    @Autowired
+    private ReplyingKafkaTemplate<String, AccountDto,AccountDto> replyingKafkaTemplate;
 
     @Value("${account.fee.silver}")
     private double silverFee;
@@ -30,7 +36,8 @@ public class AccountService {
     @Value("${account.fee.titanium}")
     private double titaniumFee;
 
-    public Account CreateAccount(UUID clientId, AccountType accountType){
+
+    public Account createAccount(UUID clientId, AccountType accountType) {
         Account account = new Account();
         account.setId_client(clientId);
         account.setAccountType(accountType);
@@ -43,8 +50,8 @@ public class AccountService {
     }
 
     public Account getAccountById(UUID accountId) throws AccountNotFoundException {
-        return accountRepository.findById(accountId).orElseThrow(() -> new
-                AccountNotFoundException("Account not found with id" + accountId));
+        return accountRepository.findById(accountId).orElseThrow(() ->
+                new AccountNotFoundException("Account not found with id: " + accountId));
     }
 
     public void updateAccountStatus(UUID accountId, AccountStatus status) throws AccountNotFoundException {
@@ -63,17 +70,36 @@ public class AccountService {
     }
 
     public List<Account> getAccountsByClientId(UUID clientId) {
-        return accountRepository.findAll().stream().filter(account ->
-                account.getId_client().equals(clientId)).toList();
+        return accountRepository.findAll().stream()
+                .filter(account -> account.getId_client().equals(clientId))
+                .toList();
     }
 
     private String generateAccountNumber() {
         return UUID.randomUUID().toString().substring(0, 12);
     }
 
-    @KafkaListener(topics = "statement-generated-topic", groupId = "account-service")
-    public void handleStatementGenerated(String message) {
-        System.out.println("message received " +message);
+    @KafkaListener(topics = "${spring.kafka.request.topic}",groupId = "account-group") // This ensures request-reply
+    public void handleAccountDetailsRequest(ConsumerRecord<String,UUID> record) throws AccountNotFoundException {
+        //Extract account id from the record
+        UUID accountId = record.value();
+        Account account = getAccountById(accountId);
+        AccountDto accountDto = new AccountDto(account.getId_account(),account.getId_client(),account.getAccountNumber(),account.getBalance(),account.getStatus(),account.getAccountType(),account.getCreatedAt());
+
+        ProducerRecord<String, AccountDto> producerRecord = new ProducerRecord<>(
+                record.headers().lastHeader("kafka_replyTopic").value() != null ? new String(record.headers().lastHeader("kafka_replyTopic").value()) : "account-details-reply-topic",
+                accountDto
+        );
+
+        producerRecord.headers().add(record.headers().lastHeader("kafka_correlationId"));
+        replyingKafkaTemplate.send(producerRecord);
+    }
+    @KafkaListener(topics = "${spring.kafka.topic.account-update-topic}", groupId = "account-group")
+    public void handleAccountUpdate(ConsumerRecord<String,AccountDto> record) throws AccountNotFoundException{
+        AccountDto accountDto = record.value();
+        Account account = getAccountById(accountDto.getId_account());
+        account.setBalance(accountDto.getBalance());
+        accountRepository.save(account);
     }
 
     public double getFeeAmount(AccountType accountType) {
@@ -84,4 +110,5 @@ public class AccountService {
             default -> 0.0;
         };
     }
+
 }

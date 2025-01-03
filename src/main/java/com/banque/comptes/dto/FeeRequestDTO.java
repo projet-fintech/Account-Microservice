@@ -16,4 +16,20 @@ public class FeeRequestDTO {
 
     @NotNull
     private double feeAmount;
+
+    public UUID getAccountId() {
+        return accountId;
+    }
+
+    public void setAccountId(UUID accountId) {
+        this.accountId = accountId;
+    }
+
+    public double getFeeAmount() {
+        return feeAmount;
+    }
+
+    public void setFeeAmount(double feeAmount) {
+        this.feeAmount = feeAmount;
+    }
 }

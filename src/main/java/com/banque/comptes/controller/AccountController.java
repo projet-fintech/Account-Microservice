@@ -2,10 +2,10 @@ package com.banque.comptes.controller;
 
 
 import com.banque.comptes.Entities.Account;
-import com.banque.comptes.Entities.AccountStatus;
 import com.banque.comptes.dto.AccountRequestDTO;
 import com.banque.comptes.dto.AccountResponseDTO;
 import com.banque.comptes.services.AccountService;
+import com.banque.events.enums.AccountStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +24,7 @@ public class AccountController {
 
     @PostMapping
     public ResponseEntity<AccountResponseDTO> createAccount(@RequestBody AccountRequestDTO accountRequestDTO) {
-        Account account = accountService.CreateAccount(accountRequestDTO.getClientID(), accountRequestDTO.getAccountType());
+        Account account = accountService.createAccount(accountRequestDTO.getId_client(), accountRequestDTO.getAccountType());
         return new ResponseEntity<>(new
                 AccountResponseDTO(account.getId_account(),account.getId_client(),account.getAccountNumber(), account.getBalance(),account.getAccountType(),account.getStatus(),account.getCreatedAt()), HttpStatus.CREATED);
     }
