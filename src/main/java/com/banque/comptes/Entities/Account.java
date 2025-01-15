@@ -36,7 +36,7 @@ public class Account {
     @Column(nullable = false,updatable = false)
     private Date createdAt;
 
-    @OneToMany(mappedBy = "account", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "account", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<Fee> fees;
 
 

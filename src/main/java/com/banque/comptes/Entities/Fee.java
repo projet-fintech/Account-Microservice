@@ -21,7 +21,10 @@ public class Fee {
     private Account account;
 
     @Column(nullable = false)
-    private double feeAmount;
+    private double monthlyFee;
+
+    @OneToOne(mappedBy = "fee", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    private TransactionFee transactionFee;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime calculatedAt;
@@ -43,12 +46,12 @@ public class Fee {
         this.account = account;
     }
 
-    public double getFeeAmount() {
-        return feeAmount;
+    public double getMonthlyFee() {
+        return monthlyFee;
     }
 
-    public void setFeeAmount(double feeAmount) {
-        this.feeAmount = feeAmount;
+    public void setMonthlyFee(double monthlyFee) {
+        this.monthlyFee = monthlyFee;
     }
 
     public LocalDateTime getCalculatedAt() {
@@ -57,5 +60,13 @@ public class Fee {
 
     public void setCalculatedAt(LocalDateTime calculatedAt) {
         this.calculatedAt = calculatedAt;
+    }
+
+    public TransactionFee getTransactionFee() {
+        return transactionFee;
+    }
+
+    public void setTransactionFee(TransactionFee transactionFee) {
+        this.transactionFee = transactionFee;
     }
 }

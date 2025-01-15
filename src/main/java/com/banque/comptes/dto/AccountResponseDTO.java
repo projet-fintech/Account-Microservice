@@ -2,7 +2,6 @@ package com.banque.comptes.dto;
 
 import com.banque.events.enums.AccountStatus;
 import com.banque.events.enums.AccountType;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 

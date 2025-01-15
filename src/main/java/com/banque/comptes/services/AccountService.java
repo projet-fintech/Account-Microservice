@@ -2,6 +2,7 @@ package com.banque.comptes.services;
 
 import com.banque.comptes.Entities.Account;
 import com.banque.comptes.repository.AccountRepository;
+import com.banque.events.AccountCreatedEvent;
 import com.banque.events.dto.AccountDto;
 import com.banque.events.enums.AccountStatus;
 import com.banque.events.enums.AccountType;
@@ -10,6 +11,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.requestreply.ReplyingKafkaTemplate;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +27,12 @@ public class AccountService {
     private AccountRepository accountRepository;
 
     @Autowired
+    private KafkaTemplate<String,AccountCreatedEvent> kafkaTemplate;
+
+    @Autowired
+    private FeeService feeService;
+
+    @Autowired
     private ReplyingKafkaTemplate<String, AccountDto,AccountDto> replyingKafkaTemplate;
 
     @Value("${account.fee.silver}")
@@ -36,6 +44,9 @@ public class AccountService {
     @Value("${account.fee.titanium}")
     private double titaniumFee;
 
+    @Value("${spring.kafka.topic.account.created-topic}")
+    private String accountCreatedTopic;
+
 
     public Account createAccount(UUID clientId, AccountType accountType) {
         Account account = new Account();
@@ -45,8 +56,17 @@ public class AccountService {
         account.setCreatedAt(new Date());
         account.setBalance(0.0);
         account.setAccountNumber(generateAccountNumber());
+//        feeService.createFee(account,calculateMonthlyFee(accountType));
+        Account savedAccount =  accountRepository.save(account);
 
-        return accountRepository.save(account);
+        // Publish AccountCreatedEvent
+        AccountCreatedEvent accountCreatedEventevent = new AccountCreatedEvent();
+        accountCreatedEventevent.setAccountId(savedAccount.getId_account());
+        accountCreatedEventevent.setClientId(clientId);
+        accountCreatedEventevent.setAccountNumber(savedAccount.getAccountNumber());
+        kafkaTemplate.send(accountCreatedTopic, accountCreatedEventevent);
+
+        return savedAccount;
     }
 
     public Account getAccountById(UUID accountId) throws AccountNotFoundException {
@@ -57,6 +77,12 @@ public class AccountService {
     public void updateAccountStatus(UUID accountId, AccountStatus status) throws AccountNotFoundException {
         Account account = getAccountById(accountId);
         account.setStatus(status);
+        accountRepository.save(account);
+    }
+
+    public void updateAccountBalance(UUID accountId, double amount) throws AccountNotFoundException {
+        Account account = getAccountById(accountId);
+        account.setBalance(amount);
         accountRepository.save(account);
     }
 
@@ -102,7 +128,7 @@ public class AccountService {
         accountRepository.save(account);
     }
 
-    public double getFeeAmount(AccountType accountType) {
+    public double calculateMonthlyFee(AccountType accountType) {
         return switch (accountType) {
             case SILVER -> silverFee;
             case GOLD -> goldFee;
